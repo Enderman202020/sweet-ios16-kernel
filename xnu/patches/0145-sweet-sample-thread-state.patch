@@ -1,0 +1,16 @@
+--- a/osfmk/kern/exception.c
++++ b/osfmk/kern/exception.c
+@@ -999,6 +999,13 @@
+ 		int n;
+ 		uint64_t fp;
+ 
++		if (sweet_sample_dump) {
++			printf("SMP %s k%d tid %llu state 0x%x opt 0x%x cont 0x%llx wev 0x%llx wres %d pri %d susp %d\n",
++			    name, tn, thread_tid(thread), (unsigned)thread->state, (unsigned)thread->options,
++			    (uint64_t)(uintptr_t)thread->continuation, (uint64_t)thread->wait_event,
++			    (int)thread->wait_result, (int)thread->sched_pri, (int)thread->suspend_count);
++		}
++
+ 		if (ss == NULL || !is_saved_state64(ss)) {
+ 			continue;
+ 		}

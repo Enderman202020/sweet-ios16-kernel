@@ -1,0 +1,23 @@
+diff --git a/osfmk/kern/timer_call.c b/osfmk/kern/timer_call.c
+--- a/osfmk/kern/timer_call.c
++++ b/osfmk/kern/timer_call.c
+@@ -222,7 +222,19 @@ timer_call_init_abstime(void)
+ {
+ 	int i;
+ 	uint64_t result;
+ 	timer_coalescing_priority_params_ns_t * tcoal_prio_params_init = timer_call_get_priority_params();
++	/*
++	 * Sweet 0086: timer coalescing defaults off (boot-arg sweetcoal=1
++	 * restores it; kern.timer.coalescing_enabled still switches it at run
++	 * time). With it on, 1 ms sleeps wake ~19 ms late on sweet, so the
++	 * audio HAL's I/O cycles and the speaker sender miss their 10 ms
++	 * periods (audible stutter). Ported from DC28088 patches-12377/2010.
++	 */
++	{
++		uint32_t sweetcoal = 0;
++		(void)PE_parse_boot_argn("sweetcoal", &sweetcoal, sizeof(sweetcoal));
++		mach_timer_coalescing_enabled = sweetcoal ? TRUE : FALSE;
++	}
+ 	nanoseconds_to_absolutetime(PAST_DEADLINE_TIMER_ADJUSTMENT_NS, &past_deadline_timer_adjustment);
+ 	nanoseconds_to_absolutetime(tcoal_prio_params_init->idle_entry_timer_processing_hdeadline_threshold_ns, &result);
+ 	tcoal_prio_params.idle_entry_timer_processing_hdeadline_threshold_abstime = (uint32_t)result;

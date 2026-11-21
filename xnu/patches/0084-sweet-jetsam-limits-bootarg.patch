@@ -1,0 +1,27 @@
+diff --git a/bsd/kern/kern_memorystatus.c b/bsd/kern/kern_memorystatus.c
+--- a/bsd/kern/kern_memorystatus.c
++++ b/bsd/kern/kern_memorystatus.c
+@@ -1307,7 +1307,23 @@ memorystatus_init(void)
+ {
+ 	kern_return_t result;
+ 	int i;
+ 
++	/*
++	 * Sweet 0084: boot-arg sweetjetsamlimits=0 starts with per-process
++	 * high-water limits off (the DEVELOPMENT sysctl
++	 * kern.memorystatus_highwater_enabled=0 does the same at runtime).
++	 * Ported from DC28088 patches-12377/2006: a daemon that inflates its
++	 * footprint through shared-region unnest (here: wland with its
++	 * SMMU/pmem mappings) is otherwise killed by jetsam within seconds.
++	 */
++	{
++		int sl = 1;
++		if (PE_parse_boot_argn("sweetjetsamlimits", &sl, sizeof(sl)) && sl == 0) {
++			memorystatus_highwater_enabled = 0;
++			printf("SWEET JETSAM: per-process memory limits off (sweetjetsamlimits=0)\n");
++		}
++	}
++
+ #if CONFIG_FREEZE
+ 	memorystatus_freeze_jetsam_band = JETSAM_PRIORITY_FREEZER;
+ 	memorystatus_frozen_processes_max = FREEZE_PROCESSES_MAX;

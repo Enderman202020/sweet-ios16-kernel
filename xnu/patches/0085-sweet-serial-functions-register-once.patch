@@ -1,0 +1,21 @@
+diff --git a/pexpert/arm/pe_serial.c b/pexpert/arm/pe_serial.c
+--- a/pexpert/arm/pe_serial.c
++++ b/pexpert/arm/pe_serial.c
+@@ -692,6 +692,17 @@ uart_sends_force_poll(
+ static void
+ register_serial_functions(struct pe_serial_functions *fns)
+ {
++	/*
++	 * Sweet 0085: registering the same functions twice makes fns->next == fns,
++	 * and uart_getc() then walks that one-entry cycle forever: with serial=3
++	 * the serial keyboard poller (MAXPRI_KERNEL) spins a whole CPU from boot.
++	 * Ported from DC28088 patches-12377/2008.
++	 */
++	for (struct pe_serial_functions *f = gPESF; f != NULL; f = f->next) {
++		if (f == fns) {
++			return;
++		}
++	}
+ 	fns->next = gPESF;
+ 	gPESF = fns;
+ }

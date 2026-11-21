@@ -1,0 +1,39 @@
+--- a/osfmk/kern/exception.c
++++ b/osfmk/kern/exception.c
+@@ -1031,6 +1031,36 @@
+ 					    name, w * 8, words[w], words[w + 1], words[w + 2],
+ 					    words[w + 3], words[w + 4], words[w + 5]);
+ 				}
++				/* heap-looking words: 18 words of each object (queues, preferences, ...) */
++				{
++					static uint64_t obj[18];
++					uint64_t seen[10];
++					int ns = 0;
++					for (int w = 0; w < 96 && ns < 10; w++) {
++						uint64_t v = words[w];
++						int dup = 0;
++						if (v < 0x100000000ULL || v >= 0x180000000ULL || (v & 7) != 0) {
++							continue;
++						}
++						for (int k = 0; k < ns; k++) {
++							if (seen[k] == v) {
++								dup = 1;
++							}
++						}
++						if (dup) {
++							continue;
++						}
++						seen[ns++] = v;
++						if (vm_map_read_user(map, v, obj, sizeof(obj)) != KERN_SUCCESS) {
++							continue;
++						}
++						for (int o = 0; o < 18; o += 6) {
++							printf("SMP %s obj 0x%llx+0x%x: 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx\n",
++							    name, v, o * 8, obj[o], obj[o + 1], obj[o + 2],
++							    obj[o + 3], obj[o + 4], obj[o + 5]);
++						}
++					}
++				}
+ 			}
+ 		}
+ 	}

@@ -1,0 +1,51 @@
+--- a/bsd/dev/sweet_sample.c
++++ b/bsd/dev/sweet_sample.c
+@@ -26,6 +26,7 @@
+ extern int hz;
+ extern void sweet_sample_start(void);
+ 
++int sweet_sample_dump;
+ static char sweet_sample_names[128];
+ 
+ static bool
+@@ -78,6 +79,7 @@ sweet_sample_thread(__unused void *arg, __unused wait_result_t wr)
+ 	PE_parse_boot_argn("sweetsamplefirst", &first, sizeof(first));
+ 	PE_parse_boot_argn("sweetsamplems", &interval_ms, sizeof(interval_ms));
+ 	PE_parse_boot_argn("sweetsamplecount", &count, sizeof(count));
++	PE_parse_boot_argn("sweetsampledump", &sweet_sample_dump, sizeof(sweet_sample_dump));
+ 	if (interval_ms < 50) {
+ 		interval_ms = 50;
+ 	}
+--- a/osfmk/kern/exception.c
++++ b/osfmk/kern/exception.c
+@@ -976,6 +976,7 @@
+  * pointer backtrace of every thread of a task, from the saved user state.
+  */
+ void sweet_sample_task(const char *name, int pid, task_t task);
++extern int sweet_sample_dump;
+ 
+ void
+ sweet_sample_task(const char *name, int pid, task_t task)
+@@ -1017,6 +1018,22 @@ sweet_sample_task(const char *name, int pid, task_t task)
+ 			fp = frame[0];
+ 		}
+ 		printf("%s\n", line);
++		if (sweet_sample_dump && tn == 1) {
++			static uint64_t words[96];
++			char l2[200];
++			int m = snprintf(l2, sizeof(l2), "SMP %s t0 x0-5", name);
++			for (unsigned r = 0; r < 6; r++) {
++				m += snprintf(l2 + m, sizeof(l2) - m, " 0x%llx", saved_state64(ss)->x[r]);
++			}
++			printf("%s\n", l2);
++			if (vm_map_read_user(map, get_saved_state_sp(ss), words, sizeof(words)) == KERN_SUCCESS) {
++				for (int w = 0; w < 96; w += 6) {
++					printf("SMP %s stk +0x%x: 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx\n",
++					    name, w * 8, words[w], words[w + 1], words[w + 2],
++					    words[w + 3], words[w + 4], words[w + 5]);
++				}
++			}
++		}
+ 	}
+ 	task_unlock(task);
+ }

@@ -1,0 +1,47 @@
+--- a/bsd/dev/sweet_sample.c
++++ b/bsd/dev/sweet_sample.c
+@@ -20,6 +20,9 @@
+ #include <kern/task.h>
+ #include <kern/thread.h>
+ #include <pexpert/pexpert.h>
++#include <pthread/workqueue_internal.h>
++#include <kern/clock.h>
++extern uint32_t qos_max_parallelism(int qos, uint64_t options);
+ 
+ extern task_t proc_task(proc_t);
+ extern int hz;
+@@ -57,6 +58,34 @@
+ 		task_t task = proc_task(p);
+ 		if (task != TASK_NULL) {
+ 			sweet_sample_task(name, proc_pid(p), task);
++			if (sweet_sample_dump) {
++				struct workqueue *wq = proc_get_wqptr(p);
++				if (wq != NULL) {
++					printf("SMP %s wq flags 0x%x req %u nthr %u idle %u sched %u constr %u dying %u creator 0x%llx\n",
++					    name, (unsigned)wq->wq_flags, (unsigned)wq->wq_reqcount, (unsigned)wq->wq_nthreads,
++					    (unsigned)wq->wq_thidlecount, (unsigned)wq->wq_threads_scheduled,
++					    (unsigned)wq->wq_constrained_threads_scheduled, (unsigned)wq->wq_thdying_count,
++					    (uint64_t)(uintptr_t)wq->wq_creator);
++					printf("SMP %s wq2 fulfilled %u creations %u interval %u last_run %llu now %llu\n",
++					    name, (unsigned)wq->wq_fulfilled, (unsigned)wq->wq_creations,
++					    (unsigned)wq->wq_timer_interval, (uint64_t)wq->wq_thread_call_last_run,
++					    (uint64_t)mach_absolute_time());
++					{
++					    unsigned qi;
++					    const volatile uint64_t *tha = (const volatile uint64_t *)&wq->wq_thactive;
++					    printf("SMP %s wq3 thactive hi 0x%llx lo 0x%llx\n", name, (uint64_t)tha[1], (uint64_t)tha[0]);
++					    for (qi = 1; qi <= 6; qi++) {
++					        printf("SMP %s wq3 qos %u maxpar %u\n", name, qi, (unsigned)qos_max_parallelism((int)qi, 0x2));
++					    }
++					    for (qi = 0; qi < WORKQ_NUM_QOS_BUCKETS; qi++) {
++					        printf("SMP %s wq3 bucket %u thsched %u lastblocked %llu\n", name, qi,
++					            (unsigned)wq->wq_thscheduled_count[qi], (uint64_t)wq->wq_lastblocked_ts[qi]);
++					    }
++					}
++				} else {
++					printf("SMP %s wq none\n", name);
++				}
++			}
+ 		}
+ 	}
+ 	return PROC_RETURNED;
